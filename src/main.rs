@@ -1,100 +1,76 @@
 fn main() {
-    println!("=== Rust 闭包演示 ===\n");
-
-    // 1. 闭包的基本语法
+    // 基础闭包
     let add = |a, b| a + b;
     println!("add(2, 3) = {}", add(2, 3));
 
-    // 多行闭包
-    let multiply = |a, b| {
-        let result = a * b;
-        result
-    };
-    println!("multiply(4, 5) = {}", multiply(4, 5));
-
-    // 2. 闭包捕获环境
+    // 闭包捕获环境变量
     let x = 10;
-    let add_to_x = |y| x + y;
-    println!("add_to_x(5) = {}", add_to_x(5));
+    let add_x = |y| x + y;
+    println!("add_x(5) = {}", add_x(5));
 
-    // 3. 闭包的类型推导
-    // 闭包不需要显式类型标注，Rust 会自动推导
-    let closure = |num| num * 2;
-    let i32_result = closure(5);
-    let f64_result = closure(5.0); // 这里会失败，因为类型已确定
-    println!("closure(5) = {}", i32_result);
-
-    // 4. Fn, FnMut, FnOnce
-    // Fn: 不可变借用
-    // FnMut: 可变借用
-    // FnOnce: 获取所有权
-
-    let fn_closure = |x| println!("Fn: {}", x);
-    apply_fn(fn_closure);
-
-    let mut count = 0;
-    let mut increment = || {
-        count += 1;
-        println!("FnMut: {}", count);
-    };
-    apply_fn_mut(increment);
-
+    // 使用 move 强制转移所有权
     let s = String::from("hello");
-    let consume = || println!("FnOnce: {}", s);
-    apply_fn_once(consume);
+    let print_s = move || println!("{}", s);
+    print_s();
+    // println!("{}", s); // 这里再使用 s 会报错，因为所有权已经转移
 
-    // 5. 闭包作为函数参数
+    // 闭包作为函数参数
     let numbers = vec![1, 2, 3, 4, 5];
-    let sum = sum_with(numbers, |x| x * 2);
-    println!("sum with closure: {}", sum);
+    let result = apply_operation(&numbers, |x| x * 2);
+    println!("result = {:?}", result);
 
-    // 6. 捕获方式
-    let s1 = String::from("hello");
-    let s2 = "world";
+    // 闭包作为返回值
+    let multiplier = make_multiplier(3);
+    println!("multiplier(4) = {}", multiplier(4));
 
-    let c1 = || println!("{}", s1); // 不可变借用
-    let c2 = || println!("{} {}", s1, s2); // 多个变量借用
+    // iterator 常用闭包
+    let numbers = vec![1, 2, 3, 4, 5];
+    let sum: i32 = numbers.iter().sum();
+    println!("sum = {}", sum);
 
-    let mut s3 = String::from("hi");
-    let c3 = || s3.push_str("!"); // 可变借用
+    let sum2: i32 = numbers.iter().fold(0, |acc, x| acc + x);
+    println!("fold sum = {}", sum2);
 
-    c1();
-    c2();
-    c3();
-    println!("{}", s3);
+    // filter 使用闭包
+    let even: Vec<_> = numbers.iter().filter(|x| *x % 2 == 0).collect();
+    println!("even numbers = {:?}", even);
 
-    // move 关键字
-    let s4 = String::from("moved");
-    let c4 = move || println!("{}", s4); // 获取所有权
-    c4();
-    // println!("{}", s4); // 错误！s4 已被移动
+    // map 使用闭包
+    let doubled: Vec<_> = numbers.iter().map(|x| x * 2).collect();
+    println!("doubled = {:?}", doubled);
 
-    println!("\n=== 总结 ===");
-    println!("闭包是匿名函数，可以捕获环境");
-    println!("Rust 自动推导闭包类型：Fn, FnMut, FnOnce");
-    println!("move 关键字强制获取变量所有权");
-    println!("闭包常用于迭代器、函数参数等场景");
+    // 结构体中使用闭包
+    let calculator = Calculator {
+        result: 0,
+        operation: Box::new(|a, b| a + b),
+    };
+    println!("calculator(1, 2) = {}", calculator.calculate(1, 2));
+
+    let calculator2 = Calculator {
+        result: 0,
+        operation: Box::new(|a, b| a * b),
+    };
+    println!("calculator2(3, 4) = {}", calculator2.calculate(3, 4));
 }
 
-// Fn trait
-fn apply_fn<F: Fn(i32)>(f: F) {
-    f(42);
+// 闭包作为函数参数
+fn apply_operation(numbers: &[i32], op: fn(i32) -> i32) -> Vec<i32> {
+    numbers.iter().map(op).collect()
 }
 
-// FnMut trait
-fn apply_fn_mut<F: FnMut()>(mut f: F) {
-    f();
+// 闭包作为返回值
+fn make_multiplier(factor: i32) -> impl Fn(i32) -> i32 {
+    move |x| x * factor
 }
 
-// FnOnce trait
-fn apply_fn_once<F: FnOnce()>(f: F) {
-    f();
+// 结构体中使用闭包
+struct Calculator {
+    result: i32,
+    operation: Box<dyn Fn(i32, i32) -> i32>,
 }
 
-// 闭包作为参数
-fn sum_with<F>(nums: Vec<i32>, f: F) -> i32
-where
-    F: Fn(i32) -> i32,
-{
-    nums.iter().map(|&x| f(x)).sum()
+impl Calculator {
+    fn calculate(&self, a: i32, b: i32) -> i32 {
+        (self.operation)(a, b)
+    }
 }
